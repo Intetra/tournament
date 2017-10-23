@@ -11,8 +11,7 @@ HTML_WRAP = '''\
   <head>
     <title>Tournament</title>
     <style>
-      h1, form { text-align: center; }
-      textarea { width: 400px; height: 100px; }
+      h1 { text-align: center; }
       div.post { border: 1px solid #999;
                  padding: 10px 10px;
 		 margin: 10px 20%%; }
@@ -22,52 +21,72 @@ HTML_WRAP = '''\
   </head>
   <body>
     <h1>Tournament</h1>
-    <h3>Players</h3>
+    <h3>Players - %s</h3>
+    <form method=post action="/registerPlayer">
+      <div><textarea id="newPlayerName" name="newPlayerName" placeholder="name"></textarea></div>
+      <div><button id="go" type="submit">Register Player</button></div>
 %s
-<form method=post action="/registerPlayer">
-  <div><textarea id="newPlayerName" name="newPlayerName"></textarea></div>
-  <div><button id="go" type="submit">Register Player</button></div>
-</form>
+<br>
+    </form>
+        <form method=post action="/deletePlayers">
+          <div><button id="go" type="submit">delete all players</button></div>
+        </form>
     <h3>Matches</h3>
+    <form method=post action="/reportMatch">
+    <div><textarea id="round" name="round" placeholder="Round #"></textarea></div>
+    <div><textarea id="playerOne" name="playerOne" placeholder="Player One ID"></textarea></div>
+      <div><textarea id="playerTwo" name="playerTwo" placeholder="Player Two ID"></textarea></div>
+      <div><textarea id="winner" name="winner" placeholder="Winner ID"></textarea></div>
+      <div><button type="submit">Report Match</button></div>
+    </form>
 %s
-<h3>Tournaments</h3>
-%s
+<br>
+    <form method=post action="/deleteMatches">
+      <div><button id="go" type="submit">delete all matches</button></div>
+    </form>
+    <br>
+    <br>
+    <h3>Pairs</h3>
+    <form method=post action="/makePairs">
+      <div><button id="go" type="submit">Make Pairs</button></div>
+    </form>
   </body>
 </html>
 '''
 
-PLAYER = '''\
+HOLDER = '''\
     <div class=player><br>%s</div>
 '''
 
 def connect():
-    """Connect to the PostgreSQL database.  Returns a database connection."""
     return psycopg2.connect("dbname=tournament")
 
 def Front(env, resp):
-    '''View is the 'main page' of the forum.
-
-    It displays the submission form and the previously posted messages.
-    '''
-    # get posts from database
-    players = tdb.GetPlayers()
+    players = tdb.playerStandings()
     matches = tdb.GetMatches()
-    tournaments = tdb.GetTournaments()
+    playerCount = tdb.countPlayers()
     # send results
     headers = [('Content-type', 'text/html')]
     resp('200 OK', headers)
-    return [HTML_WRAP % (''.join(PLAYER % p for p in players), matches, tournaments)]
+    return [HTML_WRAP % (playerCount,
+                        ''.join(HOLDER % p for p in players ),
+                        ''.join(HOLDER % m for m in matches ))]
 
-def deleteMatches():
-    """Remove all the match records from the database."""
+def deleteMatches(env, resp):
+        tdb.del_all_matches()
+        headers = [('Location', '/'),
+                   ('Content-type', 'text/plain')]
+        resp('302 REDIRECT', headers)
+        return ['Redirecting']
 
 
-def deletePlayers():
-    """Remove all the player records from the database."""
 
-
-def countPlayers():
-    """Returns the number of players currently registered."""
+def deletePlayers(env, resp):
+    tdb.del_all_players()
+    headers = [('Location', '/'),
+               ('Content-type', 'text/plain')]
+    resp('302 REDIRECT', headers)
+    return ['Redirecting']
 
 
 def registerPlayer(env, resp):
@@ -90,49 +109,46 @@ def registerPlayer(env, resp):
         return ['Redirecting']
 
 
-def playerStandings():
-    """Returns a list of the players and their win records, sorted by wins.
+def reportMatch(env, resp):
+    input = env['wsgi.input']
+    length = int(env.get('CONTENT_LENGTH', 0))
+    # If length is zero, post is empty - don't save it.
+    if length > 0:
+        postdata = input.read(length)
+        fields = cgi.parse_qs(postdata)
+        matchRound = fields['round'][0]
+        p1 = fields['playerOne'][0]
+        p2 = fields['playerTwo'][0]
+        winner = fields['winner'][0]
+        # If the post is just whitespace, don't save it.
+        matchRound = matchRound.strip()
+        p1 = p1.strip()
+        p2 = p2.strip()
+        winner = winner.strip()
+        if winner and p1 and p2 and matchRound:
+            # Save it in the database
+            tdb.rep_match(matchRound, p1, p2, winner)
+    # 302 redirect back to the main page
+    headers = [('Location', '/'),
+               ('Content-type', 'text/plain')]
+    resp('302 REDIRECT', headers)
+    return ['Redirecting']
 
-    The first entry in the list should be the player in first place, or a player
-    tied for first place if there is currently a tie.
 
-    Returns:
-      A list of tuples, each of which contains (id, name, wins, matches):
-        id: the player's unique id (assigned by the database)
-        name: the player's full name (as registered)
-        wins: the number of matches the player has won
-        matches: the number of matches the player has played
-    """
-
-
-def reportMatch(winner, loser):
-    """Records the outcome of a single match between two players.
-
-    Args:
-      winner:  the id number of the player who won
-      loser:  the id number of the player who lost
-    """
-
-
-def swissPairings():
-    """Returns a list of pairs of players for the next round of a match.
-
-    Assuming that there are an even number of players registered, each player
-    appears exactly once in the pairings.  Each player is paired with another
-    player with an equal or nearly-equal win record, that is, a player adjacent
-    to him or her in the standings.
-
-    Returns:
-      A list of tuples, each of which contains (id1, name1, id2, name2)
-        id1: the first player's unique id
-        name1: the first player's name
-        id2: the second player's unique id
-        name2: the second player's name
-    """
+def makePairs(env, resp):
+    tdb.swissPairings()
+    headers = [('Location', '/'),
+               ('Content-type', 'text/plain')]
+    resp('302 REDIRECT', headers)
+    return ['Redirecting']
 
 ## Dispatch table - maps URL prefixes to request handlers
 DISPATCH = {'': Front,
-            'registerPlayer': registerPlayer}
+            'registerPlayer': registerPlayer,
+            'deleteMatches': deleteMatches,
+            'deletePlayers': deletePlayers,
+            'reportMatch': reportMatch,
+            'makePairs': makePairs}
 
 ## Dispatcher forwards requests according to the DISPATCH table.
 def Dispatcher(env, resp):
