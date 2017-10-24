@@ -1,14 +1,22 @@
 import psycopg2
 import bleach
-
+from operator import itemgetter
 
 # get players
 def playerStandings():
     DB = psycopg2.connect("dbname=tournament")
     c = DB.cursor()
     c.execute('SELECT player_id, name, wins, matches FROM players ORDER BY wins DESC, player_id DESC')
-    players = [{'player id': str(row[0]), 'name': str(bleach.clean(row[1])), 'wins': str(row[2]), 'matches': str(row[3])}
+    players = [{'Player id': str(row[0]), 'Name': str(bleach.clean(row[1])), 'Wins': str(row[2]), 'Matches': str(row[3])}
              for row in c.fetchall()]
+    l = 0
+    for x in players:
+        y = ((str(x.keys()[3]) + ': ' +  str(x.values()[3])),
+             (str(x.keys()[2]) + ': ' +  str(x.values()[2])),
+             (str(x.keys()[1]) + ': ' +  str(x.values()[1])),
+             (str(x.keys()[0]) + ': ' +  str(x.values()[0])))
+        players[l] = y
+        l+=1
     DB.close()
     return players
 
@@ -21,6 +29,15 @@ def GetMatches():
     matches = [{'match id': str(row[0]), 'round': str(row[1]), 'winner': str(row[2]),
     'player one': str(row[3]), 'player two': str(row[4])}
              for row in c.fetchall()]
+    l = 0
+    for x in matches:
+        y = ((str(x.keys()[3]) + ': ' +  str(x.values()[3])),
+             (str(x.keys()[1]) + ': ' +  str(x.values()[1])),
+             (str(x.keys()[4]) + ': ' +  str(x.values()[4])),
+             (str(x.keys()[0]) + ': ' +  str(x.values()[0])),
+             (str(x.keys()[2]) + ': ' +  str(x.values()[2])))
+        matches[l] = y
+        l+=1
     DB.close()
     return matches
 
@@ -61,7 +78,6 @@ def del_all_players():
 def rep_match(r, p1, p2, w):
     DB = psycopg2.connect("dbname=tournament")
     c = DB.cursor()
-    print w
     c.execute("INSERT INTO matches (round, player_one, player_two, winner) VALUES (%s, %s, %s, %s);" % (r, p1, p2, w))
     c.execute("UPDATE players SET wins = wins + 1 WHERE player_id = %s;" % w)
     c.execute("UPDATE players SET matches = matches + 1 WHERE player_id = %s OR player_id = %s;" % (p1, p2))
@@ -78,27 +94,17 @@ def countPlayers():
 def swissPairings():
     DB = psycopg2.connect("dbname=tournament")
     c = DB.cursor()
-    pairs = []
     c.execute('SELECT player_id, name FROM players ORDER BY wins DESC, player_id DESC')
     players = [{'player id': str(row[0]), 'name': str(bleach.clean(row[1]))}
              for row in c.fetchall()]
-    for x in players:
-        print x;
-
+    n = 2
+    x = [players[i:i+n] for i in range(0, len(players), n)]
+    for y in x:
+        if len(y) % 2 != 0:
+            return x
+    l = 0
+    for y in x:
+        x[l] = (y[0].values()[1], y[0].values()[0], y[1].values()[1], y[1].values()[0])
+        l+=1
     DB.close()
-    return players
-
-    """Returns a list of pairs of players for the next round of a match.
-
-    Assuming that there are an even number of players registered, each player
-    appears exactly once in the pairings.  Each player is paired with another
-    player with an equal or nearly-equal win record, that is, a player adjacent
-    to him or her in the standings.
-
-    Returns:
-      A list of tuples, each of which contains (id1, name1, id2, name2)
-        id1: the first player's unique id
-        name1: the first player's name
-        id2: the second player's unique id
-        name2: the second player's name
-    """
+    return x

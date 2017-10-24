@@ -25,7 +25,7 @@ HTML_WRAP = '''\
     <form method=post action="/registerPlayer">
       <div><textarea id="newPlayerName" name="newPlayerName" placeholder="name"></textarea></div>
       <div><button id="go" type="submit">Register Player</button></div>
-%s
+      %s
 <br>
     </form>
         <form method=post action="/deletePlayers">
@@ -39,8 +39,8 @@ HTML_WRAP = '''\
       <div><textarea id="winner" name="winner" placeholder="Winner ID"></textarea></div>
       <div><button type="submit">Report Match</button></div>
     </form>
-%s
-<br>
+    %s
+    <br>
     <form method=post action="/deleteMatches">
       <div><button id="go" type="submit">delete all matches</button></div>
     </form>
@@ -50,6 +50,8 @@ HTML_WRAP = '''\
     <form method=post action="/makePairs">
       <div><button id="go" type="submit">Make Pairs</button></div>
     </form>
+    <hr>
+    %s
   </body>
 </html>
 '''
@@ -65,12 +67,14 @@ def Front(env, resp):
     players = tdb.playerStandings()
     matches = tdb.GetMatches()
     playerCount = tdb.countPlayers()
+    pairs = tdb.swissPairings()
     # send results
     headers = [('Content-type', 'text/html')]
     resp('200 OK', headers)
     return [HTML_WRAP % (playerCount,
-                        ''.join(HOLDER % p for p in players ),
-                        ''.join(HOLDER % m for m in matches ))]
+                        ''.join(HOLDER % (str(p) + '<hr>') for p in players),
+                        ''.join(HOLDER % (str(m) + '<hr>') for m in matches),
+                        ''.join(str(p2) + '<hr>' for p2 in pairs))]
 
 def deleteMatches(env, resp):
         tdb.del_all_matches()

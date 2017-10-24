@@ -12,6 +12,6 @@ create table players ( player_id serial primary key,
 create table matches (
   match_id serial primary key,
   round int,
+  winner serial references players(player_id),
   player_one serial references players(player_id),
   player_two serial references players(player_id));
-  winner serial references players(player_id),
