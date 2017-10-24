@@ -116,7 +116,6 @@ def registerPlayer(env, resp):
 def reportMatch(env, resp):
     input = env['wsgi.input']
     length = int(env.get('CONTENT_LENGTH', 0))
-    print length
     # If length is zero, post is empty - don't save it.
     if length > 36:
         postdata = input.read(length)
