@@ -97,7 +97,7 @@ def registerPlayer(env, resp):
         input = env['wsgi.input']
         length = int(env.get('CONTENT_LENGTH', 0))
         # If length is zero, post is empty - don't save it.
-        if length > 0:
+        if length > 14:
             postdata = input.read(length)
             fields = cgi.parse_qs(postdata)
             content = fields['newPlayerName'][0]
@@ -116,8 +116,9 @@ def registerPlayer(env, resp):
 def reportMatch(env, resp):
     input = env['wsgi.input']
     length = int(env.get('CONTENT_LENGTH', 0))
+    print length
     # If length is zero, post is empty - don't save it.
-    if length > 0:
+    if length > 36:
         postdata = input.read(length)
         fields = cgi.parse_qs(postdata)
         matchRound = fields['round'][0]

@@ -55,7 +55,7 @@ def GetTournaments():
 def reg_player(name):
     DB = psycopg2.connect("dbname=tournament")
     c = DB.cursor()
-    c.execute("INSERT INTO players (name, wins, matches) VALUES ('%s', 0, 0);" % name)
+    c.execute("INSERT INTO players (name, wins, matches) VALUES ('%s', 0, 0);" % bleach.clean(name))
     DB.commit()
     DB.close()
 
